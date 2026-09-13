@@ -8,15 +8,72 @@
 </head>
 
 <body>
-<!-- Шапка з навігацією та пошуком -->
+<header>
+    <h1>Каталог тварин</h1>
 
-<!-- Блок фільтрів за видом та розміром -->
+    <nav>
+        <a href="#filters">Фільтри</a>
+        <a href="#animals">Тварини</a>
+    </nav>
+</header>
 
-<!-- Список карток тварин -->
+<main>
+    <section id="filters">
+        <h2>Фільтри</h2>
 
-<!-- Блок деталей обраної тварини та догляду -->
+        <form>
+            <label for="animal-type">Вид тварини:</label>
+            <select id="animal-type" name="animal-type">
+                <option value="all">Усі</option>
+                <option value="cat">Коти</option>
+                <option value="dog">Собаки</option>
+                <option value="fish">Риби</option>
+            </select>
 
-<!-- Підвал -->
+            <label for="animal-size">Розмір:</label>
+            <select id="animal-size" name="animal-size">
+                <option value="all">Усі</option>
+                <option value="small">Маленький</option>
+                <option value="medium">Середній</option>
+                <option value="large">Великий</option>
+            </select>
+        </form>
+    </section>
+
+    <section id="animals">
+        <h2>Тварини</h2>
+        <article>
+            <h3>Кіт</h3>
+            <img src="assets/img/cat.jpg" alt="Домашній кіт">
+            <p>Вид: кіт</p>
+            <p>Розмір: середній</p>
+        </article>
+
+        <article>
+            <h3>Собака</h3>
+            <img src="assets/img/dog.jpg" alt="Домашній собака">
+            <p>Вид: собака</p>
+            <p>Розмір: великий</p>
+        </article>
+
+        <article>
+            <h3>Акваріумна рибка</h3>
+            <img src="assets/img/fish.jpg" alt="Акваріумна рибка">
+            <p>Вид: риба</p>
+            <p>Розмір: маленький</p>
+        </article>
+    </section>
+</main>
+
+<aside>
+    <h2>Догляд за твариною</h2>
+    <p>Забезпечте тварині правильне харчування, чисту воду та регулярний догляд.</p>
+</aside>
+
+<footer>
+    <p>Каталог тварин. Навчальний проєкт.</p>
+    <p>Автор: Мар'їна Єлизавета, ІП-52, 2026</p>
+</footer>
 
 <script src="js/app.js"></script>
 </body>
