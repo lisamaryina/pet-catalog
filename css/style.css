@@ -1,29 +1,59 @@
+:root {
+    --color-primary: #526B36;
+    --color-background: #F8F3E8;
+    --color-secondary: #EAD5B5;
+    --color-accent: #A65D39;
+    --color-text: #302C26;
+    --color-white: #FFFFFF;
+}
 *, *::before, *::after {
     box-sizing: border-box;
 }
 
 body {
     margin: 0;
-    font-family: Arial, sans-serif;
-    font-size: 1rem;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 16px;
     line-height: 1.5;
-    color: #2f3e2f;
-    background-color: #fffbea;
+    color: var(--color-text);
+    background-color: var(--color-background);
+}
+h1, h2, h3 {
+    font-family: "Trebuchet MS", Arial, sans-serif;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--color-text);
+}
+
+h1 {
+    font-size: 32px;
+}
+
+h2 {
+    font-size: 24px;
+}
+
+h3 {
+    font-size: 20px;
+}
+
+p {
+    font-size: 16px;
+    line-height: 1.5;
 }
 header {
-    background-color: #6b8e23;
+    background-color: var(--color-primary);
     padding: 20px;
-    border-bottom: 3px solid #556b2f;
+    border-bottom: 3px solid #40542A;
 }
 
 header h1 {
     margin: 0 0 12px;
-    color: #ffffff;
-    font-size: 2rem;
+    color: var(--color-white);
+    font-size: 32px;
 }
-
 header nav a {
-    color: #ffffff;
+    color: var(--color-white);
     text-decoration: none;
     margin-right: 16px;
 }
@@ -38,33 +68,66 @@ main {
 }
 
 section {
-    margin-bottom: 24px;
-}
-.card {
-    background-color: #ffffff;
-    padding: 20px;
-    margin-bottom: 16px;
-    border: 1px solid #d8dfb5;
-    border-radius: 10px;
+    margin-bottom: 32px;
 }
 
+section h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+/*
+ * Обґрунтування нечіткої вимоги варіанта 12:
+ * "Інтерфейс має виглядати доброзичливо й затишно".
+ *
+ * Для створення затишної атмосфери використано теплу кремову
+ * палітру в поєднанні з природними зеленими відтінками.
+ * Округлені кути карток і м'які тіні роблять дизайн менш
+ * суворим та візуально приємним.
+ * Узгоджені відступи забезпечують логічне групування
+ * інформації та полегшують її сприйняття.
+ * Кольорові бейджі дозволяють швидко розрізняти
+ * розміри тварин, не перевантажуючи інтерфейс.
+ */
+.card {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-white);
+    padding: 20px;
+    border: 1px solid var(--color-secondary);
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(48, 44, 38, 0.06);
+    min-width: 0;
+    gap: 12px;
+}
+.card h3 {
+    font-size: 20px;
+    margin: 0;
+    min-height: 52px;
+}
+.card p {
+    font-size: 16px;
+    line-height: 1.5;
+    margin: 0;
+}
 .card img {
-    width: 120px;
-    height: 120px;
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 3;
     object-fit: cover;
-    border-radius: 50%;
+    border-radius: 12px;
 }
 aside {
-    background-color: #f3f7d7;
-    border: 1px solid #8aa34b;
+    background-color: #F2E7D5;
+    border: 1px solid var(--color-secondary);
     border-radius: 8px;
     padding: 16px;
     margin-bottom: 24px;
 }
 
 footer {
-    background-color: #556b2f;
-    color: #e8edda;
+    background-color: #40542A;
+    color: var(--color-white);
     font-size: 0.875rem;
     padding: 16px 20px;
     text-align: center;
@@ -99,7 +162,9 @@ form {
 }
 
 .cards {
+    display: grid;
     grid-template-columns: 1fr;
+    gap: 20px;
 }
 
 main {
@@ -108,6 +173,14 @@ main {
 
 aside {
     width: 100%;
+}
+aside h2 {
+    margin-top: 0;
+    margin-bottom: 16px;
+}
+
+aside p {
+    margin: 0;
 }
 
 @media (min-width: 600px) {
@@ -128,7 +201,7 @@ aside {
     }
 
     .cards {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
@@ -153,11 +226,40 @@ aside {
 
     .cards {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 16px;
     }
 }
 img {
     max-width: 100%;
     height: auto;
+}
+.badge {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.badge-small {
+    background-color: #E8F2DC;
+    color: #355724;
+}
+
+.badge-medium {
+    background-color: #F6E6C8;
+    color: #785016;
+}
+
+.badge-large {
+    background-color: #F5DCD1;
+    color: #853E27;
+}
+.animal-size {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
 }
