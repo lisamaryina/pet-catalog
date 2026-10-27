@@ -43,6 +43,57 @@
 
     <section id="animals">
         <h2>Тварини</h2>
+
+        <!-- Форма додавання нової тварини -->
+        <div class="add-animal-panel">
+            <h3>Додати нову тварину</h3>
+
+            <form id="add-animal-form" class="animal-form">
+
+                <!-- Ім'я тварини -->
+                <div class="form-field">
+                    <label for="animal-name">Ім'я тварини:</label>
+                    <input
+                            type="text"
+                            id="animal-name"
+                            name="name"
+                            required
+                    >
+                </div>
+
+                <!-- Вид тварини -->
+                <div class="form-field">
+                    <label for="new-animal-species">Вид тварини:</label>
+                    <select
+                            id="new-animal-species"
+                            name="species"
+                            required
+                    >
+                        <option value="" selected disabled>Оберіть вид</option>
+                        <option value="кіт">Кіт</option>
+                        <option value="собака">Собака</option>
+                        <option value="акваріумна рибка">Акваріумна рибка</option>
+                    </select>
+                </div>
+
+                <!-- Вік тварини -->
+                <div class="form-field">
+                    <label for="animal-age">Вік (років):</label>
+                    <input
+                            type="number"
+                            id="animal-age"
+                            name="ageYears"
+                            min="0"
+                            step="any"
+                            required
+                    >
+                    <small id="animal-age-error" role="alert"></small>
+                </div>
+
+                <button type="submit">Додати тварину</button>
+            </form>
+        </div>
+
         <!-- Підсумкова кількість тварин у каталозі -->
         <p id="pets-count">Кількість тварин: 0</p>
         <div class="cards" id="pets-list">

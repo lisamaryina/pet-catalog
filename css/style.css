@@ -263,3 +263,57 @@ img {
     align-items: flex-start;
     gap: 6px;
 }
+
+/* Форма додавання нової тварини */
+.add-animal-panel {
+    background-color: var(--color-white);
+    border: 1px solid var(--color-secondary);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.animal-form {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-field input,
+.form-field select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--color-secondary);
+    border-radius: 6px;
+    font: inherit;
+}
+
+.animal-form button {
+    padding: 12px 20px;
+    background-color: var(--color-primary);
+    color: var(--color-white);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.animal-form button:hover {
+    background-color: #40542A;
+}
+
+#animal-age-error {
+    color: #B42318;
+    font-size: 14px;
+}
+
+@media (min-width: 600px) {
+    .animal-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
