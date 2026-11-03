@@ -275,7 +275,7 @@ function filterAnimalsBySpecies() {
 // Обробка події change при виборі виду тварини
 speciesFilter.addEventListener('change', filterAnimalsBySpecies);
 
-5
+
 /* ===================== Практикум 9 ===================== */
 /* Клієнт для відомого API (fetch/AJAX)                    */
 
