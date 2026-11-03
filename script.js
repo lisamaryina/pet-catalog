@@ -28,8 +28,8 @@ const listContainer = document.querySelector('#pets-list');
  * встановлюються атрибути та CSS-класи відповідно до віку.
  * Готові картки додаються до контейнера #pets-list.
  */
-function renderAnimals(animalsList) {
-    listContainer.replaceChildren();
+function renderAnimals(animalsList, container = listContainer) {
+    container.replaceChildren();
     // Шляхи до зображень відповідно до виду тварини
     const animalImages = {
         'кіт': 'assets/img/cat.jpeg',
@@ -53,7 +53,8 @@ function renderAnimals(animalsList) {
 
         // Створення зображення тварини
         const image = document.createElement('img');
-        image.src = animalImages[animal.species];
+        // Якщо в об'єкта є власне зображення (наприклад, з API) — використовуємо його
+        image.src = animal.image || animalImages[animal.species];
         image.alt = `Фото тварини ${animal.name} (${animal.species})`;
 
         // Додавання атрибута data-species
@@ -71,7 +72,7 @@ function renderAnimals(animalsList) {
         card.append(title, image, species);
 
         // Додавання створеної картки до HTML-контейнера
-        listContainer.append(card);
+        container.append(card);
     });
 }
 // Автоматичне відображення всіх тварин під час завантаження сторінки
@@ -272,4 +273,101 @@ function filterAnimalsBySpecies() {
 speciesFilter.addEventListener('change', filterAnimalsBySpecies);
 
 
+/* ===================== Практикум 9 ===================== */
+/* Клієнт для відомого API (fetch/AJAX)                    */
 
+// URL ендпоінта Dog CEO API (без ключа)
+const DOG_API_URL = 'https://dog.ceo/api/breeds/image/random';
+
+// Елементи інтерфейсу для роботи з API
+const dogList = document.querySelector('#dog-list');
+const dogLoading = document.querySelector('#dog-loading');
+const dogError = document.querySelector('#dog-error');
+const dogRefreshBtn = document.querySelector('#dog-refresh-btn');
+
+// Показ / приховування стану завантаження
+function showLoading(isLoading) {
+    dogLoading.hidden = !isLoading;
+    dogRefreshBtn.disabled = isLoading;
+}
+
+// Виведення зрозумілого повідомлення про помилку
+function showError(message) {
+    dogError.textContent = message;
+    dogError.hidden = false;
+}
+
+// Приховування повідомлення про помилку
+function hideError() {
+    dogError.textContent = '';
+    dogError.hidden = true;
+}
+
+// Отримання назви породи з URL зображення
+// (формат: https://images.dog.ceo/breeds/<порода>/<файл>.jpg)
+function getBreedFromUrl(imageUrl) {
+    const parts = imageUrl.split('/');
+    const breedIndex = parts.indexOf('breeds') + 1;
+    const breed = parts[breedIndex] || 'невідома порода';
+
+    return breed.split('-').reverse().join(' ');
+}
+
+/*
+ * loadData() — асинхронне завантаження випадкового фото собаки.
+ * Використаний API: Dog CEO — https://dog.ceo/dog-api/
+ * Ендпоінт: GET https://dog.ceo/api/breeds/image/random
+ * Відповідь: { "message": "<URL зображення>", "status": "success" }
+ */
+async function loadData() {
+    showLoading(true);
+    hideError();
+
+    try {
+        // Виконання HTTP-запиту та очікування відповіді
+        const response = await fetch(DOG_API_URL);
+
+        // Перевірка HTTP-статусу (fetch не вважає 404/500 помилкою)
+        if (!response.ok) {
+            throw new Error(`Сервер відповів кодом ${response.status}`);
+        }
+
+        // Розбір тіла відповіді як JSON
+        const data = await response.json();
+        console.log('Відповідь Dog CEO API:', data);
+
+        // Окрема перевірка поля status: API інколи повертає 200
+        // з полем status: 'error'
+        if (data.status !== 'success') {
+            throw new Error(`API повернув status: ${data.status}`);
+        }
+
+        // Зіставлення відповіді API з формою об'єкта тварини
+        const apiDog = {
+            name: getBreedFromUrl(data.message),
+            species: 'собака',
+            ageYears: 0,
+            image: data.message
+        };
+
+        // Повторне використання функції рендеру з практикуму 7
+        renderAnimals([apiDog], dogList);
+    } catch (error) {
+        // Очищення застарілої картки, щоб не показувати неактуальні дані
+        dogList.replaceChildren();
+
+        // Зрозуміле повідомлення для користувача
+        showError('Не вдалося завантажити фото собаки. Перевірте з’єднання та спробуйте пізніше.');
+        // Технічні деталі — для розробника
+        console.error('Помилка завантаження даних з Dog CEO API:', error);
+    } finally {
+        // Приховування стану завантаження за будь-якого результату
+        showLoading(false);
+    }
+}
+
+// Повторний запит за натисканням кнопки «Оновити»
+dogRefreshBtn.addEventListener('click', loadData);
+
+// Перше завантаження даних під час відкриття сторінки
+loadData();

@@ -317,3 +317,69 @@ img {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
+
+/* Практикум 9. Блок даних із Dog CEO API */
+#dog-api {
+    background-color: var(--color-white);
+    border: 1px solid var(--color-secondary);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.api-hint {
+    margin: 0 0 16px;
+}
+
+.refresh-btn {
+    padding: 12px 20px;
+    margin-bottom: 16px;
+    background-color: var(--color-primary);
+    color: var(--color-white);
+    border: none;
+    border-radius: 8px;
+    font: inherit;
+    cursor: pointer;
+}
+
+.refresh-btn:hover {
+    background-color: #40542A;
+}
+
+.refresh-btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.api-loading {
+    color: var(--color-primary);
+    font-weight: 600;
+}
+
+.api-error {
+    color: #B42318;
+    background-color: #FDECEA;
+    border: 1px solid #F5C2BC;
+    border-radius: 8px;
+    padding: 10px 14px;
+}
+
+#dog-list {
+    grid-template-columns: minmax(0, 360px);
+}
+
+#dog-list .card h3 {
+    min-height: 0;
+    text-transform: capitalize;
+}
+
+@media (min-width: 1024px) {
+    #dog-api {
+        grid-column: 1;
+        grid-row: 3;
+    }
+
+    aside {
+        grid-row: 2;
+        align-self: start;
+    }
+}

@@ -129,6 +129,24 @@
         </div>
     </section>
 
+    <!-- Практикум 9. Випадкове фото собаки з Dog CEO API -->
+    <section id="dog-api">
+        <h2>Собака дня</h2>
+        <p class="api-hint">Випадкове фото собаки з відкритого сервісу Dog CEO API.</p>
+
+        <!-- Кнопка повторного завантаження даних -->
+        <button type="button" id="dog-refresh-btn" class="refresh-btn">Оновити</button>
+
+        <!-- Стан завантаження -->
+        <p id="dog-loading" class="api-loading" hidden>Завантаження…</p>
+
+        <!-- Повідомлення про помилку для користувача -->
+        <p id="dog-error" class="api-error" role="alert" hidden></p>
+
+        <!-- Контейнер для картки, отриманої з API -->
+        <div class="cards" id="dog-list"></div>
+    </section>
+
     <aside>
         <h2>Догляд за твариною</h2>
         <p>Забезпечте тварині правильне харчування, чисту воду та регулярний догляд.</p>
