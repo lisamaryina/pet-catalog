@@ -61,10 +61,13 @@ function renderAnimals(animalsList, container = listContainer) {
         card.dataset.species = animal.species;
 
         // Додавання умовного класу залежно від віку
-        if (animal.ageYears < 2) {
-            card.classList.add('young');
-        } else {
-            card.classList.add('adult');
+        // (лише якщо вік відомий — для даних з API він може бути відсутній)
+        if (typeof animal.ageYears === 'number') {
+            if (animal.ageYears < 2) {
+                card.classList.add('young');
+            } else {
+                card.classList.add('adult');
+            }
         }
 
 
@@ -323,6 +326,9 @@ async function loadData() {
     showLoading(true);
     hideError();
 
+    // Очищення попередньої картки на початку нового запиту
+    dogList.replaceChildren();
+
     try {
         // Виконання HTTP-запиту та очікування відповіді
         const response = await fetch(DOG_API_URL);
@@ -346,16 +352,13 @@ async function loadData() {
         const apiDog = {
             name: getBreedFromUrl(data.message),
             species: 'собака',
-            ageYears: 0,
+            ageYears: null, // вік невідомий: Dog CEO API його не повертає
             image: data.message
         };
 
         // Повторне використання функції рендеру з практикуму 7
         renderAnimals([apiDog], dogList);
     } catch (error) {
-        // Очищення застарілої картки, щоб не показувати неактуальні дані
-        dogList.replaceChildren();
-
         // Зрозуміле повідомлення для користувача
         showError('Не вдалося завантажити фото собаки. Перевірте з’єднання та спробуйте пізніше.');
         // Технічні деталі — для розробника
