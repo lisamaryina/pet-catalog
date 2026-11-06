@@ -97,7 +97,7 @@ function renderAnimals(animalsList, container = listContainer) {
 // Крок 7. Ручний DOM-рендеринг замінено
 // компонентом PetCard на Vue 3.
 // renderAnimals();
-renderAnimals(animals);
+//renderAnimals(animals);
 
 // Отримання елемента для відображення кількості тварин
 const petsCount = document.querySelector('#pets-count');
@@ -281,7 +281,7 @@ function filterAnimalsBySpecies() {
         );
 
     // Повторне відображення відфільтрованих тварин
-    renderAnimals(filteredAnimals);
+    //renderAnimals(filteredAnimals);
 
     // Оновлення кількості відображених тварин
     petsCount.textContent =
@@ -375,7 +375,7 @@ async function loadData() {
         };
 
         // Повторне використання функції рендеру з практикуму 7
-        renderAnimals([apiDog], dogList);
+        //renderAnimals([apiDog], dogList);
     } catch (error) {
         // Зрозуміле повідомлення для користувача
         showError('Не вдалося завантажити фото собаки. Перевірте з’єднання та спробуйте пізніше.');
