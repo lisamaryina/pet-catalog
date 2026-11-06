@@ -156,7 +156,26 @@
     <p>Каталог тварин. Навчальний проєкт.</p>
     <p>Автор: Мар'їна Єлизавета, ІП-52, 2026</p>
 </footer>
+<!-- Підключення Vue 3 через CDN -->
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<!-- Контейнер Vue 3 -->
+<div id="app">
+    <h2>Каталог домашніх тварин (Vue 3)</h2>
 
+    <div class="pets-list">
+        <pet-card
+                v-for="animal in animals"
+                :key="animal.id"
+                :name="animal.name"
+                :species="animal.species"
+                :age-years="animal.ageYears">
+        </pet-card>
+    </div>
+</div>
+<!-- JavaScript нашого проєкту -->
+<script src="script.js"></script>
+</body>
+</html>
 <script src="js/app.js"></script>
 </body>
 </html>

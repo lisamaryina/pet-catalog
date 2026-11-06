@@ -1,3 +1,19 @@
+/*
+ * Практична робота №10
+ * Клієнтське програмування з бібліотеками
+ * та фреймворками (Vue/React).
+ *
+ * Варіант №12 — Каталог домашніх тварин.
+ *
+ * Обрано Vue 3, оскільки він дозволяє
+ * реалізувати компонентний підхід та реактивне
+ * оновлення інтерфейсу без ручної роботи з DOM.
+ *
+ * Компонент PetCard отримує дані через props.
+ * Локальний стан isFavorite змінюється при
+ * натисканні на картку та автоматично
+ * оновлює її відображення.
+ */
 console.log('script.js підключено');
 // Видалення статичних карток тварин із DOM-дерева
 let staticCard = document.querySelector('#pets-list .card');
@@ -78,7 +94,9 @@ function renderAnimals(animalsList, container = listContainer) {
         container.append(card);
     });
 }
-// Автоматичне відображення всіх тварин під час завантаження сторінки
+// Крок 7. Ручний DOM-рендеринг замінено
+// компонентом PetCard на Vue 3.
+// renderAnimals();
 renderAnimals(animals);
 
 // Отримання елемента для відображення кількості тварин
@@ -374,3 +392,58 @@ dogRefreshBtn.addEventListener('click', loadData);
 
 // Перше завантаження даних під час відкриття сторінки
 loadData();
+// Крок 6. Інтерактивна картка тварини
+const PetCard = {
+    // props, data(), methods, template
+    props: ['name', 'species', 'ageYears'],
+
+    data() {
+        return {
+            isFavorite: false
+        };
+    },
+
+    methods: {
+        toggleFavorite() {
+            this.isFavorite = !this.isFavorite;
+        }
+    },
+
+    template: `
+        <article
+            class="pet-card"
+            @click="toggleFavorite"
+            :class="{ 'favorite': isFavorite }"
+        >
+            <h3>{{ name }}</h3>
+            <p>Вид: {{ species }}</p>
+            <p>Вік: {{ ageYears }} років</p>
+
+            <p v-if="isFavorite">
+                ❤️ Обране
+            </p>
+            <p v-else>
+                🤍 Натисніть, щоб додати до обраного
+            </p>
+        </article>
+    `
+};
+// Крок 3. Створення реактивного стану Vue 3
+const petCatalogApp = Vue.createApp({
+    components: { PetCard },
+    data() {
+        return {
+            animals: [
+                // Наш масив із шести тварин
+                { id: 1, name: "Мурчик", species: "кіт", ageYears: 1 },
+                { id: 2, name: "Барсик", species: "кіт", ageYears: 4 },
+                { id: 3, name: "Рекс", species: "собака", ageYears: 5 },
+                { id: 4, name: "Луна", species: "собака", ageYears: 0.5 },
+                { id: 5, name: "Немо", species: "акваріумна рибка", ageYears: 1 },
+                { id: 6, name: "Голді", species: "акваріумна рибка", ageYears: 2 }
+            ]
+        };
+    }
+});
+
+petCatalogApp.mount("#app");
