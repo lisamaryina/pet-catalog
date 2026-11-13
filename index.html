@@ -155,7 +155,7 @@
     <p>Каталог тварин. Навчальний проєкт.</p>
     <p>Автор: Мар'їна Єлизавета, ІП-52, 2026</p>
 </footer>
-<!-- Контейнер Vue 3 (ПР №10–11) -->
+<!-- Контейнер Vue 3 (ПР №10–12) -->
 <div id="app">
     <h2>Каталог домашніх тварин (Vue 3)</h2>
 
@@ -166,6 +166,19 @@
         Сховище: {{ storageMode === 'indexeddb' ? 'IndexedDB (PetCatalogDB → pets)' : 'localStorage' }}
         · Тварин у каталозі: {{ animals.length }}
     </p>
+
+    <!-- ПР №12. Canvas-акваріум: кількість рибок = кількість записів-рибок у каталозі -->
+    <section class="aquarium">
+        <h3>Акваріум каталогу 🐠</h3>
+        <canvas ref="aquarium" id="aquarium" width="600" height="240"></canvas>
+        <div class="aquarium-controls">
+            <button type="button" class="aquarium-btn" @click="toggleAquarium">
+                {{ aquariumPaused ? '▶ Старт' : '⏸ Пауза' }}
+            </button>
+            <span class="aquarium-status">Анімація: {{ aquariumStatus }}</span>
+        </div>
+        <p class="aquarium-hint">Тут плавають усі рибки з каталогу. Клікніть по рибці, щоб її налякати.</p>
+    </section>
 
     <!-- Форма додавання нової тварини з фото (варіант 12) -->
     <form class="vue-pet-form" @submit.prevent="addPet">

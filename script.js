@@ -17,6 +17,10 @@
  * Практична робота №11 (варіант 12): дані каталогу зберігаються
  * в IndexedDB (база PetCatalogDB, сховище "pets", keyPath "id").
  * Функції роботи з localStorage та IndexedDB — у блоці «Практикум 11» нижче.
+ *
+ * Практична робота №12 (варіант 12): Canvas-анімація «рибки, що плавають».
+ * Кількість рибок дорівнює кількості записів-рибок у каталозі; рибки рухаються
+ * по синусоїді в циклі requestAnimationFrame (блок «Практикум 12» нижче).
  */
 console.log('script.js підключено');
 // Видалення статичних карток тварин із DOM-дерева
@@ -558,6 +562,351 @@ async function migrateFromLocalStorage() {
     localStorage.setItem(LS_MIGRATED_KEY, 'true');
 }
 
+/* ===================== Практикум 12 ===================== */
+/* Анімація на Canvas: «рибки, що плавають» (варіант 12).   */
+/* Кожна рибка відповідає запису каталогу з видом «рибка»   */
+/* (масив animals з IndexedDB, ПР №11), тому кількість       */
+/* рибок змінюється разом із даними застосунку.             */
+
+// Крок 1. Обрано технологію Canvas: кількість рухомих об'єктів
+// заздалегідь невідома (залежить від даних), а рух по синусоїді
+// потребує перерахунку координат у кожному кадрі.
+
+const MAX_FISH = 30;   // обмеження, щоб анімація не «гальмувала» при великому каталозі
+
+// У акваріумі плавають лише записи, вид яких містить слово «риб»
+// («акваріумна рибка», «риба-клоун» тощо); коти й собаки лишаються в каталозі
+function isFishRecord(animal) {
+    return /риб/i.test(animal.species);
+}
+
+// Колір рибки обчислюється з імені (завжди однаковий для однієї рибки)
+function colorFromName(name) {
+    let hash = 0;
+    for (const char of name) {
+        hash = (hash * 31 + char.charCodeAt(0)) % 360;
+    }
+    return `hsl(${hash}, 75%, 60%)`;
+}
+
+class Aquarium {
+    // Крок 3. Отримання 2D-контексту з <canvas> (розмір задано атрибутами width/height)
+    constructor(canvas, onStatusChange) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.width = canvas.width;
+        this.height = canvas.height;
+
+        this.fishes = [];          // по одній рибці на кожен запис каталогу
+        this.bubbles = this.createBubbles(14);
+        this.time = 0;             // час анімації в секундах (для синусоїди)
+        this.lastTime = 0;
+        this.frameId = null;       // id кадру для cancelAnimationFrame
+
+        this.pausedByUser = false; // кнопка «Пауза/Старт»
+        this.isVisible = true;     // чи видно canvas на екрані
+        this.onStatusChange = onStatusChange;
+
+        this.fps = 0;
+        this.fpsFrames = 0;
+        this.fpsTime = 0;
+
+        this.frame = this.frame.bind(this);
+
+        // Крок 8. Зупинка анімації, коли акваріум поза екраном
+        if ('IntersectionObserver' in window) {
+            this.observer = new IntersectionObserver((entries) => {
+                this.isVisible = entries[0].isIntersecting;
+                this.updateRunning();
+            }, { threshold: 0.1 });
+            this.observer.observe(canvas);
+        }
+
+        // Крок 8. Зупинка анімації, коли вкладка браузера неактивна
+        this.onVisibilityChange = () => this.updateRunning();
+        document.addEventListener('visibilitychange', this.onVisibilityChange);
+
+        // Крок 7. Взаємодія мишею: клік по рибці «лякає» її
+        this.onClick = (event) => this.scareFishAt(event);
+        canvas.addEventListener('click', this.onClick);
+    }
+
+    // ===== Крок 4. Відображення стану на основі даних каталогу =====
+    // Синхронізує рибок із записами каталогу виду «рибка»:
+    // новий запис — нова рибка, видалений запис — рибка плавно зникає.
+    sync(animalsList) {
+        const fishRecords = animalsList.filter(isFishRecord);
+        const ids = new Set(fishRecords.map(animal => animal.id));
+
+        // Рибки видалених записів позначаються як такі, що зникають
+        for (const fish of this.fishes) {
+            if (!ids.has(fish.id)) {
+                fish.leaving = true;
+            }
+        }
+
+        // Для нових записів створюються нові рибки
+        const existing = new Set(this.fishes.map(fish => fish.id));
+        for (const animal of fishRecords.slice(0, MAX_FISH)) {
+            if (!existing.has(animal.id)) {
+                this.fishes.push(this.createFish(animal, this.fishes.length));
+            }
+        }
+
+        console.log(`Акваріум: рибок — ${Math.min(fishRecords.length, MAX_FISH)} (записів-рибок у каталозі: ${fishRecords.length} з ${animalsList.length})`);
+
+        // Якщо анімація на паузі — перемальовуємо один статичний кадр
+        if (this.frameId === null) {
+            this.draw();
+        }
+    }
+
+    // Створення рибки з параметрами руху по синусоїді.
+    // index рівномірно «розкладає» рибок по акваріуму (крок золотого перетину),
+    // щоб вони не злипалися в одному місці.
+    createFish(animal, index) {
+        const size = 14 + Math.random() * 8;
+        const spreadY = (index * 0.618) % 1;
+        const spreadX = (index * 0.382 + 0.15) % 1;
+        return {
+            id: animal.id,
+            name: animal.name,
+            color: colorFromName(animal.name),
+            size: size,
+            x: spreadX * this.width,
+            baseY: 80 + spreadY * (this.height - 140),        // середня лінія синусоїди (нижче підпису)
+            y: 0,
+            amplitude: 8 + Math.random() * 18,                 // амплітуда коливань
+            frequency: 1 + Math.random() * 1.5,                // частота коливань (рад/с)
+            phase: Math.random() * Math.PI * 2,                // початкова фаза
+            speed: 30 + Math.random() * 40,                    // швидкість (пікселів/с)
+            direction: Math.random() < 0.5 ? -1 : 1,           // напрям руху
+            boost: 0,                                          // прискорення після кліку
+            scale: 0,                                          // поява «з нуля»
+            alpha: 1,
+            leaving: false
+        };
+    }
+
+    createBubbles(count) {
+        return Array.from({ length: count }, () => ({
+            x: Math.random() * this.width,
+            y: Math.random() * this.height,
+            r: 1.5 + Math.random() * 3,
+            speed: 15 + Math.random() * 25
+        }));
+    }
+
+    // ===== Крок 5. Цикл анімації через requestAnimationFrame =====
+    frame(now) {
+        // Час між кадрами в секундах (обмежено, щоб після паузи не було «стрибка»)
+        const dt = Math.min((now - this.lastTime) / 1000, 0.05);
+        this.lastTime = now;
+
+        this.update(dt);   // 1) оновлення стану
+        this.draw();       // 2) clearRect + перемальовування кадру
+        this.countFps(dt);
+
+        this.frameId = requestAnimationFrame(this.frame);
+    }
+
+    // Оновлення координат: рух по x і синусоїда по y
+    update(dt) {
+        this.time += dt;
+
+        for (const fish of this.fishes) {
+            fish.boost = Math.max(0, fish.boost - dt * 60);
+            fish.x += (fish.speed + fish.boost) * fish.direction * dt;
+            fish.y = fish.baseY + fish.amplitude * Math.sin(this.time * fish.frequency + fish.phase);
+
+            // Рибка, що виплила за край, з'являється з протилежного боку
+            const margin = fish.size * 3;
+            if (fish.x > this.width + margin) fish.x = -margin;
+            if (fish.x < -margin) fish.x = this.width + margin;
+
+            fish.scale = Math.min(1, fish.scale + dt * 1.5);
+            if (fish.leaving) {
+                fish.alpha -= dt * 1.5;
+            }
+        }
+
+        // Повністю зниклі рибки видаляються з масиву
+        this.fishes = this.fishes.filter(fish => fish.alpha > 0);
+
+        for (const bubble of this.bubbles) {
+            bubble.y -= bubble.speed * dt;
+            if (bubble.y < -5) {
+                bubble.y = this.height + 5;
+                bubble.x = Math.random() * this.width;
+            }
+        }
+    }
+
+    // Малювання одного кадру
+    draw() {
+        const ctx = this.ctx;
+
+        // clearRect обов'язковий: інакше кадри накладаються один на одного
+        ctx.clearRect(0, 0, this.width, this.height);
+
+        // Вода
+        const water = ctx.createLinearGradient(0, 0, 0, this.height);
+        water.addColorStop(0, '#7fd3f7');
+        water.addColorStop(1, '#1f6fa8');
+        ctx.fillStyle = water;
+        ctx.fillRect(0, 0, this.width, this.height);
+
+        // Пісок на дні
+        ctx.fillStyle = '#e8d29a';
+        ctx.fillRect(0, this.height - 18, this.width, 18);
+
+        // Бульбашки
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+        for (const bubble of this.bubbles) {
+            ctx.beginPath();
+            ctx.arc(bubble.x, bubble.y, bubble.r, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // Рибки
+        for (const fish of this.fishes) {
+            this.drawFish(fish);
+        }
+
+        // Підпис стану на самому canvas
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+        ctx.fillRect(8, 8, 190, 24);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '13px system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        const alive = this.fishes.filter(fish => !fish.leaving).length;
+        ctx.fillText(`Рибок: ${alive}   FPS: ${this.frameId === null ? '—' : this.fps}`, 16, 25);
+
+        if (alive === 0) {
+            ctx.textAlign = 'center';
+            ctx.font = '16px system-ui, sans-serif';
+            ctx.fillText('Акваріум порожній — додайте рибку в каталог', this.width / 2, this.height / 2);
+        }
+    }
+
+    drawFish(fish) {
+        const ctx = this.ctx;
+        const s = fish.size;
+
+        // Нахил рибки за напрямом руху по синусоїді
+        const vy = fish.amplitude * fish.frequency * Math.cos(this.time * fish.frequency + fish.phase);
+        const tilt = Math.atan2(vy, fish.speed + fish.boost) * 0.6;
+
+        // save/restore — щоб translate/rotate/scale не впливали на наступні фігури
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, fish.alpha);
+        ctx.translate(fish.x, fish.y);
+        ctx.rotate(tilt * fish.direction);
+        ctx.scale(fish.direction * fish.scale, fish.scale);
+
+        // Хвіст
+        ctx.fillStyle = fish.color;
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.8, 0);
+        ctx.lineTo(-s * 1.6, -s * 0.6);
+        ctx.lineTo(-s * 1.6, s * 0.6);
+        ctx.closePath();
+        ctx.fill();
+
+        // Тіло
+        ctx.beginPath();
+        ctx.ellipse(0, 0, s, s * 0.6, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Око
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(s * 0.45, -s * 0.15, s * 0.18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#222222';
+        ctx.beginPath();
+        ctx.arc(s * 0.5, -s * 0.15, s * 0.09, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+
+        // Ім'я рибки над нею (без дзеркального відображення)
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, fish.alpha) * fish.scale;
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '12px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(fish.name, fish.x, fish.y - s - 4);
+        ctx.restore();
+    }
+
+    countFps(dt) {
+        this.fpsFrames++;
+        this.fpsTime += dt;
+        if (this.fpsTime >= 0.5) {
+            this.fps = Math.round(this.fpsFrames / this.fpsTime);
+            this.fpsFrames = 0;
+            this.fpsTime = 0;
+        }
+    }
+
+    // Крок 7. Клік по рибці: вона розвертається й пришвидшується
+    scareFishAt(event) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = (event.clientX - rect.left) * (this.width / rect.width);
+        const y = (event.clientY - rect.top) * (this.height / rect.height);
+
+        const fish = this.fishes.find(f => Math.hypot(f.x - x, f.y - y) < f.size * 1.5);
+        if (fish) {
+            fish.direction *= -1;
+            fish.boost = 160;
+            console.log(`Рибку «${fish.name}» налякано`);
+        }
+    }
+
+    // ===== Крок 7–8. Керування запуском і зупинкою =====
+    setPaused(paused) {
+        this.pausedByUser = paused;
+        this.updateRunning();
+    }
+
+    updateRunning() {
+        let reason = '';
+        if (this.pausedByUser) reason = 'на паузі';
+        else if (document.hidden) reason = 'зупинена (вкладка неактивна)';
+        else if (!this.isVisible) reason = 'зупинена (акваріум поза екраном)';
+
+        if (reason === '' && this.frameId === null) {
+            this.lastTime = performance.now();
+            this.frameId = requestAnimationFrame(this.frame);
+            console.log('Анімацію акваріума запущено');
+        } else if (reason !== '' && this.frameId !== null) {
+            cancelAnimationFrame(this.frameId);
+            this.frameId = null;
+            this.draw();
+            console.log(`Анімація акваріума: ${reason} — cancelAnimationFrame`);
+        }
+
+        if (this.onStatusChange) {
+            this.onStatusChange(reason === '' ? 'працює' : reason, this.pausedByUser);
+        }
+    }
+
+    // Повне завершення: зупинка циклу та зняття обробників
+    destroy() {
+        if (this.frameId !== null) {
+            cancelAnimationFrame(this.frameId);
+            this.frameId = null;
+        }
+        if (this.observer) this.observer.disconnect();
+        document.removeEventListener('visibilitychange', this.onVisibilityChange);
+        this.canvas.removeEventListener('click', this.onClick);
+    }
+}
+
+// Екземпляр акваріума (поза реактивним станом Vue, щоб не обгортати його в Proxy)
+let aquarium = null;
+
 /* ===================== Практикум 10–11 ===================== */
 /* Vue 3 + збереження даних у localStorage / IndexedDB.          */
 /* Функції роботи зі сховищами — у блоці «Практикум 11» вище.  */
@@ -622,15 +971,45 @@ const petCatalogApp = Vue.createApp({
             formError: '',
             dbError: '',
             storageMode: USE_INDEXEDDB ? 'indexeddb' : 'localStorage',
-            loading: true
+            loading: true,
+            aquariumStatus: 'запуск...',   // ПР №12: стан анімації для користувача
+            aquariumPaused: false
         };
     },
 
     mounted() {
+        // ПР №12. Створення акваріума на <canvas ref="aquarium">
+        aquarium = new Aquarium(this.$refs.aquarium, (status, paused) => {
+            this.aquariumStatus = status;
+            this.aquariumPaused = paused;
+        });
+        aquarium.updateRunning();
+
         this.init();
     },
 
+    // ПР №12. Крок 6. Анімація реагує на зміну даних: після додавання
+    // чи видалення рибки в каталозі кількість рибок оновлюється автоматично
+    watch: {
+        animals: {
+            handler(list) {
+                if (aquarium) aquarium.sync(list);
+            },
+            deep: true
+        }
+    },
+
+    // ПР №12. Крок 8. Коректне завершення анімації
+    beforeUnmount() {
+        if (aquarium) aquarium.destroy();
+    },
+
     methods: {
+        // ПР №12. Крок 7. Кнопка «Пауза/Старт» для анімації акваріума
+        toggleAquarium() {
+            aquarium.setPaused(!aquarium.pausedByUser);
+        },
+
         // Запуск застосунку: завантаження даних зі сховища
         async init() {
             // Етап 1 (кроки 2–4): працюємо лише з localStorage
