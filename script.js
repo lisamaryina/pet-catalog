@@ -13,6 +13,10 @@
  * Локальний стан isFavorite змінюється при
  * натисканні на картку та автоматично
  * оновлює її відображення.
+ *
+ * Практична робота №11 (варіант 12): дані каталогу зберігаються
+ * в IndexedDB (база PetCatalogDB, сховище "pets", keyPath "id").
+ * Функції роботи з localStorage та IndexedDB — у блоці «Практикум 11» нижче.
  */
 console.log('script.js підключено');
 // Видалення статичних карток тварин із DOM-дерева
@@ -392,14 +396,187 @@ dogRefreshBtn.addEventListener('click', loadData);
 
 // Перше завантаження даних під час відкриття сторінки
 loadData();
-// Крок 6. Інтерактивна картка тварини
+
+/* ===================== Практикум 11 ===================== */
+/* Локальні сховища даних: localStorage / IndexedDB.         */
+/* База "PetCatalogDB", версія 1, сховище "pets", keyPath "id". */
+
+// ===== Крок 1. Модель даних =====
+// Один запис про тварину:
+// {
+//   id:       number — унікальний ідентифікатор (keyPath в IndexedDB),
+//   name:     string — ім'я тварини,
+//   species:  string — вид (кіт / собака / акваріумна рибка ...),
+//   photoUrl: string — посилання на фото (URL-рядок або шлях до файлу),
+//   notes:    string — довільні нотатки
+// }
+const DEFAULT_PETS = [
+    { id: 1, name: 'Мурчик', species: 'кіт',              photoUrl: 'assets/img/cat.jpeg',  notes: '1 рік, дуже грайливий' },
+    { id: 2, name: 'Барсик', species: 'кіт',              photoUrl: 'assets/img/cat.jpeg',  notes: '4 роки, любить спати' },
+    { id: 3, name: 'Рекс',   species: 'собака',           photoUrl: 'assets/img/dog.jpeg',  notes: '5 років, охороняє двір' },
+    { id: 4, name: 'Луна',   species: 'собака',           photoUrl: 'assets/img/dog.jpeg',  notes: 'пів року, цуценя' },
+    { id: 5, name: 'Немо',   species: 'акваріумна рибка', photoUrl: 'assets/img/fish.jpg',  notes: 'риба-клоун' },
+    { id: 6, name: 'Голді',  species: 'акваріумна рибка', photoUrl: 'assets/img/fish.jpg',  notes: 'золота рибка' }
+];
+
+// Перемикач етапів роботи:
+//   false — етап 1 (кроки 2–4): дані зберігаються лише в localStorage;
+//   true  — етап 2 (кроки 5–11): основне сховище IndexedDB + міграція.
+const USE_INDEXEDDB = true;
+
+// ===== Крок 2. localStorage =====
+const LS_KEY = 'petCatalogItems';
+const LS_MIGRATED_KEY = 'petCatalogMigrated';
+
+// Записує масив тварин у localStorage.
+// localStorage зберігає лише рядки, тому масив перетворюється на JSON.
+function saveToLocalStorage(items) {
+    localStorage.setItem(LS_KEY, JSON.stringify(items));
+}
+
+// Читає масив тварин із localStorage.
+// JSON.parse загорнуто в try/catch: пошкоджені дані не «валять» застосунок.
+function loadFromLocalStorage() {
+    try {
+        const raw = localStorage.getItem(LS_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch (error) {
+        console.error('Пошкоджені дані в localStorage:', error);
+        return [];
+    }
+}
+
+// ===== Крок 5. Схема IndexedDB =====
+const DB_NAME = 'PetCatalogDB';  // назва бази
+const DB_VERSION = 1;            // версія схеми
+const STORE_NAME = 'pets';       // object store (аналог таблиці), keyPath: 'id'
+
+// ===== Крок 6. Відкриття бази =====
+// Повертає Promise з об'єктом бази. onupgradeneeded викликається лише тоді,
+// коли бази ще немає або її версія нижча за DB_VERSION — тільки тут
+// створюється object store.
+function openDB() {
+    return new Promise((resolve, reject) => {
+        if (!('indexedDB' in window)) {
+            reject(new Error('IndexedDB не підтримується цим браузером'));
+            return;
+        }
+
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+            }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+// ===== Крок 7. CRUD-функції =====
+
+// Перетворює реактивний об'єкт Vue (Proxy) на звичайний об'єкт:
+// IndexedDB не може зберегти Proxy (виникає DataCloneError).
+function toPlainPet(pet) {
+    return {
+        id: pet.id,
+        name: pet.name,
+        species: pet.species,
+        photoUrl: pet.photoUrl || '',
+        notes: pet.notes || ''
+    };
+}
+
+// CREATE: додає запис. put() створює новий запис
+// або перезаписує наявний із тим самим id (add() кинув би помилку).
+async function addItem(item) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).put(toPlainPet(item));
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+// UPDATE: оновлює наявний запис — той самий put() з тим самим id.
+async function updateItem(item) {
+    return addItem(item);
+}
+
+// READ: повертає масив усіх тварин (впорядкований за ключем id).
+async function getAllItems() {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const request = tx.objectStore(STORE_NAME).getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+// DELETE: видаляє запис за ключем id.
+async function deleteItem(id) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+// ===== Крок 8. Одноразова міграція localStorage → IndexedDB =====
+// Якщо store порожній, а в localStorage є дані — переносимо їх через addItem.
+// Прапорець petCatalogMigrated=true не дає повторювати міграцію.
+async function migrateFromLocalStorage() {
+    if (localStorage.getItem(LS_MIGRATED_KEY) === 'true') {
+        console.log('Міграція вже виконувалась раніше — пропускаємо.');
+        return;
+    }
+
+    const dbItems = await getAllItems();
+    if (dbItems.length === 0) {
+        const lsItems = loadFromLocalStorage();
+
+        if (lsItems.length > 0) {
+            for (const item of lsItems) {
+                await addItem(item);
+            }
+            console.log(`Міграція: перенесено ${lsItems.length} записів із localStorage в IndexedDB.`);
+        } else {
+            // Даних немає ніде (перший запуск) — заповнюємо стартовим масивом
+            for (const item of DEFAULT_PETS) {
+                await addItem(item);
+            }
+            console.log('localStorage порожній — IndexedDB заповнено стартовими даними.');
+        }
+    }
+
+    localStorage.setItem(LS_MIGRATED_KEY, 'true');
+}
+
+/* ===================== Практикум 10–11 ===================== */
+/* Vue 3 + збереження даних у localStorage / IndexedDB.          */
+/* Функції роботи зі сховищами — у блоці «Практикум 11» вище.  */
+
+// Компонент картки тварини (ПР №10; у ПР №11 додано фото, нотатки й видалення)
 const PetCard = {
-    // props, data(), methods, template
-    props: ['name', 'species', 'ageYears'],
+    props: {
+        id:       { type: Number, required: true },
+        name:     { type: String, required: true },
+        species:  { type: String, required: true },
+        photoUrl: { type: String, default: '' },
+        notes:    { type: String, default: '' }
+    },
+    emits: ['delete'],
 
     data() {
         return {
-            isFavorite: false
+            isFavorite: false,  // локальний стан картки (ПР №10)
+            imgFailed: false    // фото не завантажилось — показуємо заглушку
         };
     },
 
@@ -415,34 +592,129 @@ const PetCard = {
             @click="toggleFavorite"
             :class="{ 'favorite': isFavorite }"
         >
+            <img v-if="photoUrl && !imgFailed" :src="photoUrl" :alt="name"
+                 class="pet-photo" @error="imgFailed = true">
+            <div v-else class="pet-photo pet-photo-empty">🐾</div>
+
             <h3>{{ name }}</h3>
             <p>Вид: {{ species }}</p>
-            <p>Вік: {{ ageYears }} років</p>
+            <p v-if="notes">Нотатки: {{ notes }}</p>
 
-            <p v-if="isFavorite">
-                ❤️ Обране
-            </p>
-            <p v-else>
-                🤍 Натисніть, щоб додати до обраного
-            </p>
+            <p v-if="isFavorite">❤️ Обране</p>
+            <p v-else>🤍 Натисніть, щоб додати до обраного</p>
+
+            <!-- .stop — щоб клік по кнопці не перемикав «обране» -->
+            <button type="button" class="delete-btn" @click.stop="$emit('delete', id)">
+                🗑 Видалити
+            </button>
         </article>
     `
 };
-// Крок 3. Створення реактивного стану Vue 3
+
+// Кореневий застосунок Vue
 const petCatalogApp = Vue.createApp({
     components: { PetCard },
+
     data() {
         return {
-            animals: [
-                // Наш масив із шести тварин
-                { id: 1, name: "Мурчик", species: "кіт", ageYears: 1 },
-                { id: 2, name: "Барсик", species: "кіт", ageYears: 4 },
-                { id: 3, name: "Рекс", species: "собака", ageYears: 5 },
-                { id: 4, name: "Луна", species: "собака", ageYears: 0.5 },
-                { id: 5, name: "Немо", species: "акваріумна рибка", ageYears: 1 },
-                { id: 6, name: "Голді", species: "акваріумна рибка", ageYears: 2 }
-            ]
+            animals: [],
+            form: { name: '', species: '', photoUrl: '', notes: '' },
+            formError: '',
+            dbError: '',
+            storageMode: USE_INDEXEDDB ? 'indexeddb' : 'localStorage',
+            loading: true
         };
+    },
+
+    mounted() {
+        this.init();
+    },
+
+    methods: {
+        // Запуск застосунку: завантаження даних зі сховища
+        async init() {
+            // Етап 1 (кроки 2–4): працюємо лише з localStorage
+            if (this.storageMode === 'localStorage') {
+                const saved = loadFromLocalStorage();
+                this.animals = saved.length > 0 ? saved : DEFAULT_PETS.slice();
+                saveToLocalStorage(this.animals);
+                this.loading = false;
+                return;
+            }
+
+            // Етап 2: міграція → читання з IndexedDB
+            try {
+                await migrateFromLocalStorage();
+                await this.reloadAnimals();
+            } catch (error) {
+                // Крок 11. Обробка помилки відкриття бази
+                console.error('Помилка IndexedDB:', error);
+                this.dbError = 'Не вдалося відкрити базу даних IndexedDB (можливо, увімкнено ' +
+                               'режим приватного перегляду). Каталог працює, але зміни тимчасово ' +
+                               'зберігаються в localStorage.';
+                this.storageMode = 'localStorage';
+                const saved = loadFromLocalStorage();
+                this.animals = saved.length > 0 ? saved : DEFAULT_PETS.slice();
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        // Крок 9. Джерело даних для рендеру списку — результат getAllItems()
+        async reloadAnimals() {
+            this.animals = await getAllItems();
+        },
+
+        // Сценарій варіанта 12: додавання нової тварини з фото (URL-рядок)
+        async addPet() {
+            if (!this.form.name || !this.form.species) {
+                this.formError = "Заповніть поля «Ім'я» та «Вид».";
+                return;
+            }
+            this.formError = '';
+
+            const newPet = {
+                id: Date.now(),
+                name: this.form.name,
+                species: this.form.species,
+                photoUrl: this.form.photoUrl,
+                notes: this.form.notes
+            };
+
+            try {
+                if (this.storageMode === 'indexeddb') {
+                    await addItem(newPet);
+                    await this.reloadAnimals();       // оновлюємо список із бази
+                } else {
+                    this.animals.push(newPet);
+                    saveToLocalStorage(this.animals); // Крок 3. Збереження після додавання
+                }
+                console.log('Додано тварину:', newPet);
+                this.form = { name: '', species: '', photoUrl: '', notes: '' };
+            } catch (error) {
+                console.error('Помилка збереження:', error);
+                this.dbError = 'Не вдалося зберегти тварину. Спробуйте ще раз.';
+            }
+        },
+
+        // Сценарій варіанта 12: видалення запису про тварину
+        async deletePet(id) {
+            if (!confirm('Видалити запис про тварину?')) return;
+
+            try {
+                if (this.storageMode === 'indexeddb') {
+                    await deleteItem(id);
+                    await this.reloadAnimals();       // оновлюємо список із бази
+                } else {
+                    this.animals = this.animals.filter(animal => animal.id !== id);
+                    saveToLocalStorage(this.animals); // Крок 3. Збереження після видалення
+                }
+                console.log('Видалено тварину з id =', id);
+            } catch (error) {
+                console.error('Помилка видалення:', error);
+                this.dbError = 'Не вдалося видалити запис. Спробуйте ще раз.';
+            }
+        }
     }
 });
 

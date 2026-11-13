@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Каталог тварин</title>
     <link rel="stylesheet" href="css/style.css">
-    <script src="script.js" defer></script>
 </head>
 
 <body>
@@ -156,26 +155,55 @@
     <p>Каталог тварин. Навчальний проєкт.</p>
     <p>Автор: Мар'їна Єлизавета, ІП-52, 2026</p>
 </footer>
-<!-- Підключення Vue 3 через CDN -->
-<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-<!-- Контейнер Vue 3 -->
+<!-- Контейнер Vue 3 (ПР №10–11) -->
 <div id="app">
     <h2>Каталог домашніх тварин (Vue 3)</h2>
 
-    <div class="pets-list">
+    <!-- Крок 11. Зрозуміле повідомлення, якщо IndexedDB недоступна -->
+    <div v-if="dbError" class="db-error" role="alert">⚠️ {{ dbError }}</div>
+
+    <p class="storage-info">
+        Сховище: {{ storageMode === 'indexeddb' ? 'IndexedDB (PetCatalogDB → pets)' : 'localStorage' }}
+        · Тварин у каталозі: {{ animals.length }}
+    </p>
+
+    <!-- Форма додавання нової тварини з фото (варіант 12) -->
+    <form class="vue-pet-form" @submit.prevent="addPet">
+        <label>Ім'я*
+            <input v-model.trim="form.name" placeholder="Напр., Сніжок">
+        </label>
+        <label>Вид*
+            <input v-model.trim="form.species" placeholder="Напр., кролик">
+        </label>
+        <label>URL фото
+            <input v-model.trim="form.photoUrl" placeholder="https://...">
+        </label>
+        <label>Нотатки
+            <input v-model.trim="form.notes" placeholder="Вік, характер...">
+        </label>
+        <button type="submit">Додати тварину</button>
+        <p v-if="formError" class="form-error">{{ formError }}</p>
+    </form>
+
+    <p v-if="loading">Завантаження даних...</p>
+
+    <div v-else class="pets-list">
         <pet-card
                 v-for="animal in animals"
                 :key="animal.id"
+                :id="animal.id"
                 :name="animal.name"
                 :species="animal.species"
-                :age-years="animal.ageYears">
+                :photo-url="animal.photoUrl"
+                :notes="animal.notes"
+                @delete="deletePet">
         </pet-card>
     </div>
 </div>
+
+<!-- Підключення Vue 3 через CDN -->
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 <!-- JavaScript нашого проєкту -->
 <script src="script.js"></script>
-</body>
-</html>
-<script src="js/app.js"></script>
 </body>
 </html>
