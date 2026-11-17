@@ -14,10 +14,25 @@
     <nav>
         <a href="#filters">Фільтри</a>
         <a href="#animals">Тварини</a>
+        <!-- ПР №13. Посилання на головний маршрут SPA -->
+        <a href="#/" data-link>Каталог (SPA)</a>
     </nav>
 </header>
 
 <main>
+    <!-- ПР №13. SPA: усі «сторінки» каталогу рендеряться в контейнер #page
+         без перезавантаження (hash-маршрутизація: #/, #/pets/:id, #/species/:species) -->
+    <section id="catalog-spa">
+        <h2>Каталог (SPA)</h2>
+        <nav class="spa-nav" id="spa-nav">
+            <a href="#/" data-link>Усі тварини</a>
+        </nav>
+        <p class="spa-route">Поточний маршрут: <code id="spa-route">#/</code></p>
+
+        <!-- Крок 2. Спільний контейнер сторінки -->
+        <div id="page" aria-live="polite"></div>
+    </section>
+
     <section id="filters">
         <h2>Фільтри</h2>
 

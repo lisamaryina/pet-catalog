@@ -21,6 +21,10 @@
  * Практична робота №12 (варіант 12): Canvas-анімація «рибки, що плавають».
  * Кількість рибок дорівнює кількості записів-рибок у каталозі; рибки рухаються
  * по синусоїді в циклі requestAnimationFrame (блок «Практикум 12» нижче).
+ *
+ * Практична робота №13 (варіант 12): SPA з hash-маршрутизацією без фреймворку.
+ * Маршрути «/», «/pets/:id», «/species/:species» рендеряться в контейнер #page
+ * функцією renderAnimals() з ПР №7 за даними з IndexedDB (блок «Практикум 13»).
  */
 console.log('script.js підключено');
 // Видалення статичних карток тварин із DOM-дерева
@@ -69,16 +73,35 @@ function renderAnimals(animalsList, container = listContainer) {
 
         // Створення заголовка з ім'ям тварини
         const title = document.createElement('h3');
-        title.textContent = animal.name;
+        if (animal.id !== undefined) {
+            // ПР №13: ім'я веде на сторінку деталей «/pets/:id»
+            const petLink = document.createElement('a');
+            petLink.href = `#/pets/${animal.id}`;
+            petLink.dataset.link = '';
+            petLink.textContent = animal.name;
+            title.append(petLink);
+        } else {
+            title.textContent = animal.name;
+        }
 
         // Створення абзацу з видом тварини
         const species = document.createElement('p');
-        species.textContent = `Вид: ${animal.species}`;
+        if (animal.id !== undefined) {
+            // ПР №13: вид веде на фільтр «/species/:species»
+            const speciesLink = document.createElement('a');
+            speciesLink.href = `#/species/${encodeURIComponent(animal.species)}`;
+            speciesLink.dataset.link = '';
+            speciesLink.textContent = animal.species;
+            species.append('Вид: ', speciesLink);
+        } else {
+            species.textContent = `Вид: ${animal.species}`;
+        }
 
         // Створення зображення тварини
         const image = document.createElement('img');
         // Якщо в об'єкта є власне зображення (наприклад, з API) — використовуємо його
-        image.src = animal.image || animalImages[animal.species];
+        // (ПР №11–13: записи з IndexedDB зберігають фото в полі photoUrl)
+        image.src = animal.image || animal.photoUrl || animalImages[animal.species] || '';
         image.alt = `Фото тварини ${animal.name} (${animal.species})`;
 
         // Додавання атрибута data-species
@@ -96,7 +119,12 @@ function renderAnimals(animalsList, container = listContainer) {
 
 
         // Формування структури картки
-        card.append(title, image, species);
+        // Якщо фото немає (наприклад, новий вид без photoUrl) — картка без зображення
+        if (image.getAttribute('src')) {
+            card.append(title, image, species);
+        } else {
+            card.append(title, species);
+        }
 
         // Додавання створеної картки до HTML-контейнера
         container.append(card);
@@ -907,6 +935,257 @@ class Aquarium {
 // Екземпляр акваріума (поза реактивним станом Vue, щоб не обгортати його в Proxy)
 let aquarium = null;
 
+/* ===================== Практикум 13 ===================== */
+/* SPA: клієнтська маршрутизація без фреймворку (варіант 12). */
+
+// Крок 1. Обрано hash-based роутинг (location.hash + подія hashchange).
+// Частина URL після # не надсилається на сервер, тому маршрути працюють
+// без налаштування сервера: і з file://, і з вбудованим сервером WebStorm
+// (localhost:63342/pet-catalog/...), де «красиві» шляхи History API ламалися б.
+
+// Крок 2. Спільний контейнер, у який рендеряться всі «сторінки» SPA.
+// (#app уже зайнятий Vue-застосунком з ПР №10, тому контейнер — #page)
+const pageContainer = document.querySelector('#page');
+const spaNav = document.querySelector('#spa-nav');
+const spaRouteLabel = document.querySelector('#spa-route');
+
+// Крок 3. Таблиця маршрутів варіанта 12 — масив «патерн → view-функція»:
+//   «/»                 — список усіх тварин;
+//   «/pets/:id»         — картка тварини з фото й нотатками
+//                         (:id — ключ запису в IndexedDB-сховищі "pets");
+//   «/species/:species» — фільтр за видом тварини (:species звіряється з полем species).
+const routes = [
+    { path: '/', view: renderHomePage },
+    { path: '/pets/:id', view: renderPetPage },
+    { path: '/species/:species', view: renderSpeciesPage }
+];
+
+// Крок 4. Зіставлення шляху з патернами маршрутів.
+// Обидва рядки розбиваються на сегменти по «/»; сегмент «:назва» — параметр.
+// Повертає { view, params } або null, якщо маршрут не знайдено.
+function matchRoute(path) {
+    const pathParts = path.split('/').filter(Boolean);
+
+    for (const route of routes) {
+        const routeParts = route.path.split('/').filter(Boolean);
+        if (routeParts.length !== pathParts.length) continue;
+
+        const params = {};
+        const isMatch = routeParts.every((part, i) => {
+            if (part.startsWith(':')) {
+                // Кирилиця й пробіли в URL закодовані (%D0%BA...), тому декодуємо
+                params[part.slice(1)] = decodeURIComponent(pathParts[i]);
+                return true;
+            }
+            return part === pathParts[i];
+        });
+
+        if (isMatch) return { view: route.view, params };
+    }
+
+    return null; // маршрут не знайдено — сторінка 404
+}
+
+// Дані для view-функцій беруться з IndexedDB (ПР №11),
+// а якщо база недоступна — з localStorage.
+async function loadCatalog() {
+    if (!USE_INDEXEDDB) {
+        const saved = loadFromLocalStorage();
+        return saved.length > 0 ? saved : DEFAULT_PETS.slice();
+    }
+    try {
+        return await getAllItems();
+    } catch (error) {
+        console.error('SPA: IndexedDB недоступна, читаємо localStorage', error);
+        const saved = loadFromLocalStorage();
+        return saved.length > 0 ? saved : DEFAULT_PETS.slice();
+    }
+}
+
+// Допоміжні функції для створення елементів сторінок
+function createLink(path, text, className) {
+    const link = document.createElement('a');
+    link.href = '#' + path;
+    link.dataset.link = '';          // позначка внутрішнього SPA-посилання (крок 6)
+    link.textContent = text;
+    if (className) link.className = className;
+    return link;
+}
+
+function createPageTitle(text) {
+    const title = document.createElement('h3');
+    title.className = 'page-title';
+    title.textContent = text;
+    return title;
+}
+
+function createMessage(text) {
+    const message = document.createElement('p');
+    message.className = 'page-message';
+    message.textContent = text;
+    return message;
+}
+
+// ===== Крок 5. View-функції =====
+// Кожна view отримує вже очищений контейнер #page і викликає функцію
+// renderAnimals() з ПР №7 замість того, щоб дублювати розмітку карток.
+
+// «/» — список усіх тварин
+function renderHomePage(params, animalsList) {
+    const list = document.createElement('div');
+    list.className = 'cards';
+    pageContainer.append(createPageTitle(`Усі тварини (${animalsList.length})`), list);
+
+    if (animalsList.length === 0) {
+        pageContainer.append(createMessage('Каталог порожній — додайте тварину через форму нижче.'));
+        return;
+    }
+    renderAnimals(animalsList, list);
+}
+
+// «/species/:species» — тварини одного виду
+function renderSpeciesPage(params, animalsList) {
+    const filtered = animalsList.filter(animal => animal.species === params.species);
+    const list = document.createElement('div');
+    list.className = 'cards';
+
+    pageContainer.append(
+        createLink('/', '← Усі тварини', 'back-link'),
+        createPageTitle(`Вид: ${params.species} (${filtered.length})`),
+        list
+    );
+
+    if (filtered.length === 0) {
+        pageContainer.append(createMessage(`Тварин виду «${params.species}» у каталозі немає.`));
+        return;
+    }
+    renderAnimals(filtered, list);
+}
+
+// ===== Крок 8. Сторінка деталей «/pets/:id» =====
+// Шукає один запис за id серед даних з IndexedDB і показує лише його.
+function renderPetPage(params, animalsList) {
+    const pet = animalsList.find(animal => animal.id === Number(params.id));
+
+    if (!pet) {
+        renderNotFound(`/pets/${params.id}`, `Тварину з id ${params.id} у каталозі не знайдено.`);
+        return;
+    }
+
+    // Картка будується тією ж функцією renderAnimals() з ПР №7
+    const cardWrapper = document.createElement('div');
+    cardWrapper.className = 'pet-detail-card';
+    renderAnimals([pet], cardWrapper);
+
+    // Додаткові відомості, яких немає в списку
+    const details = document.createElement('div');
+    details.className = 'pet-detail-info';
+
+    const notes = document.createElement('p');
+    notes.textContent = `Нотатки: ${pet.notes || 'немає'}`;
+
+    const id = document.createElement('p');
+    id.textContent = `ID запису в IndexedDB: ${pet.id}`;
+
+    const speciesLink = createLink(
+        `/species/${encodeURIComponent(pet.species)}`,
+        `Усі тварини виду «${pet.species}» →`
+    );
+
+    details.append(notes, id, speciesLink);
+
+    const detail = document.createElement('div');
+    detail.className = 'pet-detail';
+    detail.append(cardWrapper, details);
+
+    pageContainer.append(
+        createLink('/', '← Усі тварини', 'back-link'),
+        createPageTitle(`Картка тварини: ${pet.name}`),
+        detail
+    );
+}
+
+// ===== Крок 9. Сторінка «Не знайдено» =====
+function renderNotFound(path, message) {
+    pageContainer.append(
+        createPageTitle('Сторінку не знайдено (404)'),
+        createMessage(message || `Маршрут «${path}» не існує.`),
+        createLink('/', 'На головну', 'back-link')
+    );
+}
+
+// Меню SPA: «Усі тварини» + види, що є в каталозі (будується з даних)
+function renderSpaNav(animalsList, path) {
+    spaNav.replaceChildren();
+
+    const homeLink = createLink('/', 'Усі тварини');
+    if (path === '/') homeLink.classList.add('active');
+    spaNav.append(homeLink);
+
+    const speciesList = [...new Set(animalsList.map(animal => animal.species))];
+    for (const species of speciesList) {
+        const link = createLink(`/species/${encodeURIComponent(species)}`, species);
+        if (path === `/species/${encodeURIComponent(species)}` ||
+            decodeURIComponent(path) === `/species/${species}`) {
+            link.classList.add('active');
+        }
+        spaNav.append(link);
+    }
+}
+
+// Звичайні якорі сторінки (#filters, #animals) не є маршрутами SPA
+function isRouteHash() {
+    return location.hash.startsWith('#/');
+}
+
+// Головна функція роутера: визначає шлях, знаходить маршрут і рендерить view
+let renderCounter = 0;
+async function renderRoute() {
+    const path = isRouteHash() ? location.hash.slice(1) : '/';
+    const renderId = ++renderCounter;
+
+    const animalsList = await loadCatalog();
+    // Якщо за час читання бази користувач уже перейшов далі — цей рендер застарів
+    if (renderId !== renderCounter) return;
+
+    spaRouteLabel.textContent = '#' + decodeURIComponent(path);
+    renderSpaNav(animalsList, path);
+
+    pageContainer.innerHTML = '';   // очищення контейнера перед новою «сторінкою»
+
+    const match = matchRoute(path);
+    if (!match) {
+        renderNotFound(decodeURIComponent(path));
+        console.log(`SPA: маршрут ${decodeURIComponent(path)} не знайдено (404)`);
+        return;
+    }
+
+    match.view(match.params, animalsList);
+    console.log(`SPA: маршрут ${decodeURIComponent(path)}`, match.params);
+}
+
+// Перехід на інший маршрут: зміна хеша викликає подію hashchange → renderRoute()
+function navigate(path) {
+    location.hash = path;
+}
+
+// ===== Крок 6. Клієнтська навігація для посилань з атрибутом data-link =====
+document.addEventListener('click', (event) => {
+    const link = event.target.closest('a[data-link]');
+    if (!link) return;
+
+    event.preventDefault();                         // без звичайного переходу
+    navigate(link.getAttribute('href').slice(1));   // '#/pets/3' → '/pets/3'
+});
+
+// ===== Крок 7. Кнопки «назад»/«вперед» браузера змінюють хеш → hashchange =====
+window.addEventListener('hashchange', () => {
+    if (isRouteHash()) renderRoute();
+});
+
+// Перший рендер після завантаження сторінки
+window.addEventListener('DOMContentLoaded', renderRoute);
+
 /* ===================== Практикум 10–11 ===================== */
 /* Vue 3 + збереження даних у localStorage / IndexedDB.          */
 /* Функції роботи зі сховищами — у блоці «Практикум 11» вище.  */
@@ -994,6 +1273,8 @@ const petCatalogApp = Vue.createApp({
         animals: {
             handler(list) {
                 if (aquarium) aquarium.sync(list);
+                // ПР №13: після додавання/видалення тварини оновлюємо поточну «сторінку» SPA
+                renderRoute();
             },
             deep: true
         }
