@@ -1,0 +1,12 @@
+{
+  "name": "pet-catalog-server",
+  "version": "1.0.0",
+  "description": "Локальний Node.js-сервер каталогу домашніх тварин (ПР №14, варіант 12)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "Марʼїна Єлизавета",
+  "license": "ISC"
+}

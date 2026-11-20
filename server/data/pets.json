@@ -1,0 +1,10 @@
+[
+  { "id": 1, "name": "Мурчик", "species": "кіт",              "photoUrl": "assets/img/cat.jpeg", "notes": "1 рік, дуже грайливий" },
+  { "id": 2, "name": "Барсик", "species": "кіт",              "photoUrl": "assets/img/cat.jpeg", "notes": "4 роки, любить спати" },
+  { "id": 3, "name": "Рекс",   "species": "собака",           "photoUrl": "assets/img/dog.jpeg", "notes": "5 років, охороняє двір" },
+  { "id": 4, "name": "Луна",   "species": "собака",           "photoUrl": "assets/img/dog.jpeg", "notes": "пів року, цуценя" },
+  { "id": 5, "name": "Немо",   "species": "акваріумна рибка", "photoUrl": "assets/img/fish.jpg", "notes": "риба-клоун" },
+  { "id": 6, "name": "Голді",  "species": "акваріумна рибка", "photoUrl": "assets/img/fish.jpg", "notes": "золота рибка" },
+  { "id": 7, "name": "Пушок",  "species": "кіт",              "photoUrl": "assets/img/cat.jpeg", "notes": "2 роки, пухнастий" },
+  { "id": 8, "name": "Дорі",   "species": "акваріумна рибка", "photoUrl": "assets/img/fish.jpg", "notes": "синя хірургічна рибка" }
+]
