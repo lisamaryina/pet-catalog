@@ -25,6 +25,10 @@
  * Практична робота №13 (варіант 12): SPA з hash-маршрутизацією без фреймворку.
  * Маршрути «/», «/pets/:id», «/species/:species» рендеряться в контейнер #page
  * функцією renderAnimals() з ПР №7 за даними з IndexedDB (блок «Практикум 13»).
+ *
+ * Практична робота №14 (варіант 12): «Тварина дня» завантажується з власного
+ * Node.js-сервера (server/server.js, GET /api/pets/random) замість Dog CEO API.
+ * Запуск: cd server → npm start → http://localhost:3000
  */
 console.log('script.js підключено');
 // Видалення статичних карток тварин із DOM-дерева
@@ -334,7 +338,11 @@ speciesFilter.addEventListener('change', filterAnimalsBySpecies);
 /* Клієнт для відомого API (fetch/AJAX)                    */
 
 // URL ендпоінта Dog CEO API (без ключа)
-const DOG_API_URL = 'https://dog.ceo/api/breeds/image/random';
+// const DOG_API_URL = 'https://dog.ceo/api/breeds/image/random';
+
+// ПР №14. Крок 9. Замість зовнішнього Dog CEO API — власний Node.js-сервер.
+// Відносна адреса: сторінка й API віддаються тим самим сервером (http://localhost:3000)
+const PETS_API_URL = '/api/pets';
 
 // Елементи інтерфейсу для роботи з API
 const dogList = document.querySelector('#dog-list');
@@ -362,6 +370,7 @@ function hideError() {
 
 // Отримання назви породи з URL зображення
 // (формат: https://images.dog.ceo/breeds/<порода>/<файл>.jpg)
+// Використовувалась для Dog CEO API (ПР №9); після ПР №14 не викликається
 function getBreedFromUrl(imageUrl) {
     const parts = imageUrl.split('/');
     const breedIndex = parts.indexOf('breeds') + 1;
@@ -371,10 +380,10 @@ function getBreedFromUrl(imageUrl) {
 }
 
 /*
- * loadData() — асинхронне завантаження випадкового фото собаки.
- * Використаний API: Dog CEO — https://dog.ceo/dog-api/
- * Ендпоінт: GET https://dog.ceo/api/breeds/image/random
- * Відповідь: { "message": "<URL зображення>", "status": "success" }
+ * loadData() — асинхронне завантаження випадкової тварини.
+ * ПР №9: зовнішній Dog CEO API (GET https://dog.ceo/api/breeds/image/random).
+ * ПР №14: локальний сервер — GET /api/pets/random
+ * Відповідь: { "id": 3, "name": "Рекс", "species": "собака", "photoUrl": "...", "notes": "..." }
  */
 async function loadData() {
     showLoading(true);
@@ -385,7 +394,7 @@ async function loadData() {
 
     try {
         // Виконання HTTP-запиту та очікування відповіді
-        const response = await fetch(DOG_API_URL);
+        const response = await fetch(`${PETS_API_URL}/random`);
 
         // Перевірка HTTP-статусу (fetch не вважає 404/500 помилкою)
         if (!response.ok) {
@@ -394,29 +403,24 @@ async function loadData() {
 
         // Розбір тіла відповіді як JSON
         const data = await response.json();
-        console.log('Відповідь Dog CEO API:', data);
+        console.log('Відповідь локального сервера:', data);
 
-        // Окрема перевірка поля status: API інколи повертає 200
-        // з полем status: 'error'
-        if (data.status !== 'success') {
-            throw new Error(`API повернув status: ${data.status}`);
-        }
-
-        // Зіставлення відповіді API з формою об'єкта тварини
-        const apiDog = {
-            name: getBreedFromUrl(data.message),
-            species: 'собака',
-            ageYears: null, // вік невідомий: Dog CEO API його не повертає
-            image: data.message
+        // Зіставлення відповіді сервера з формою об'єкта тварини
+        // (без id, щоб картка не вела на SPA-маршрут ПР №13)
+        const dayPet = {
+            name: data.name,
+            species: data.species,
+            ageYears: null,
+            image: data.photoUrl
         };
 
         // Повторне використання функції рендеру з практикуму 7
-        //renderAnimals([apiDog], dogList);
+        renderAnimals([dayPet], dogList);
     } catch (error) {
         // Зрозуміле повідомлення для користувача
-        showError('Не вдалося завантажити фото собаки. Перевірте з’єднання та спробуйте пізніше.');
+        showError('Не вдалося завантажити тварину дня. Перевірте, чи запущено сервер (npm start у теці server).');
         // Технічні деталі — для розробника
-        console.error('Помилка завантаження даних з Dog CEO API:', error);
+        console.error('Помилка завантаження даних з локального сервера:', error);
     } finally {
         // Приховування стану завантаження за будь-якого результату
         showLoading(false);
