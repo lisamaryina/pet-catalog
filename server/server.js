@@ -46,7 +46,11 @@ const MIME_TYPES = {
 
 // Відповідь у форматі JSON з правильним Content-Type і статус-кодом
 function sendJson(res, statusCode, data) {
-    res.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
+    // ПР №15: nosniff забороняє браузеру «вгадувати» тип і виконувати JSON як HTML/скрипт
+    res.writeHead(statusCode, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'X-Content-Type-Options': 'nosniff'
+    });
     res.end(JSON.stringify(data));
 }
 
@@ -117,7 +121,7 @@ function serveStatic(req, res, pathname) {
             return;
         }
         const type = MIME_TYPES[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
-        res.writeHead(200, { 'Content-Type': type });
+        res.writeHead(200, { 'Content-Type': type, 'X-Content-Type-Options': 'nosniff' });
         res.end(content);
     });
 }
