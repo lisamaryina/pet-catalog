@@ -29,6 +29,10 @@
  * Практична робота №14 (варіант 12): «Тварина дня» завантажується з власного
  * Node.js-сервера (server/server.js, GET /api/pets/random) замість Dog CEO API.
  * Запуск: cd server → npm start → http://localhost:3000
+ *
+ * Практична робота №15 (варіант 12): аудит безпеки. Дані користувача (зокрема
+ * поле notes) виводяться лише через textContent / інтерполяцію Vue, photoUrl
+ * перевіряється функцією isSafeImageUrl() (блок «Практикум 15»). Звіт — у README.md.
  */
 console.log('script.js підключено');
 // Видалення статичних карток тварин із DOM-дерева
@@ -105,7 +109,9 @@ function renderAnimals(animalsList, container = listContainer) {
         const image = document.createElement('img');
         // Якщо в об'єкта є власне зображення (наприклад, з API) — використовуємо його
         // (ПР №11–13: записи з IndexedDB зберігають фото в полі photoUrl)
-        image.src = animal.image || animal.photoUrl || animalImages[animal.species] || '';
+        // ПР №15: photoUrl із форми використовується лише після перевірки isSafeImageUrl()
+        image.src = safeImageUrl(animal.image) || safeImageUrl(animal.photoUrl) ||
+                    animalImages[animal.species] || '';
         image.alt = `Фото тварини ${animal.name} (${animal.species})`;
 
         // Додавання атрибута data-species
@@ -411,7 +417,7 @@ async function loadData() {
             name: data.name,
             species: data.species,
             ageYears: null,
-            image: data.photoUrl
+            image: safeImageUrl(data.photoUrl)   // ПР №15: навіть дані власного сервера перевіряємо
         };
 
         // Повторне використання функції рендеру з практикуму 7
@@ -569,6 +575,8 @@ async function deleteItem(id) {
 // Прапорець petCatalogMigrated=true не дає повторювати міграцію.
 async function migrateFromLocalStorage() {
     if (localStorage.getItem(LS_MIGRATED_KEY) === 'true') {
+        // ПР №15: після міграції копія каталогу в localStorage зайва — видаляємо її
+        localStorage.removeItem(LS_KEY);
         console.log('Міграція вже виконувалась раніше — пропускаємо.');
         return;
     }
@@ -592,6 +600,8 @@ async function migrateFromLocalStorage() {
     }
 
     localStorage.setItem(LS_MIGRATED_KEY, 'true');
+    // ПР №15: дані вже в IndexedDB — не тримаємо їхню незахищену копію в localStorage
+    localStorage.removeItem(LS_KEY);
 }
 
 /* ===================== Практикум 12 ===================== */
@@ -1085,6 +1095,8 @@ function renderPetPage(params, animalsList) {
     const details = document.createElement('div');
     details.className = 'pet-detail-info';
 
+    // ПР №15. Нотатки власника — це дані користувача, тому лише textContent, ніколи innerHTML:
+    // тестовий рядок <img src=x onerror="alert('XSS')"> показується як текст і не виконується.
     const notes = document.createElement('p');
     notes.textContent = `Нотатки: ${pet.notes || 'немає'}`;
 
@@ -1190,6 +1202,56 @@ window.addEventListener('hashchange', () => {
 // Перший рендер після завантаження сторінки
 window.addEventListener('DOMContentLoaded', renderRoute);
 
+/* ===================== Практикум 15 ===================== */
+/* Безпека клієнтського застосунку (варіант 12).             */
+/* Аудит: README.md, розділ «Безпека (ПР №15)».               */
+
+// Обмеження довжини текстових полів форми
+const MAX_NAME_LENGTH = 40;
+const MAX_NOTES_LENGTH = 300;
+
+// Крок 3. Екранування спецсимволів HTML — для випадків, коли розмітку все ж
+// доводиться збирати рядком. У проєкті дані користувача виводяться через
+// textContent або інтерполяцію Vue {{ }}, тому ця функція — запасний інструмент.
+function escapeHtml(str) {
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+    return String(str).replace(/[&<>"']/g, (ch) => map[ch]);
+}
+
+// Перевірка photoUrl (варіант 12): дозволені лише
+//   - зображення самого проєкту: assets/img/<назва>.jpg|jpeg|png|gif|webp;
+//   - зовнішні адреси https:// з розширенням зображення і без параметрів «?…»/«#…».
+// Відкидаються javascript:, data:, http:// (без шифрування), адреси без розширення
+// зображення та посилання з параметрами (типовий спосіб стеження, напр. track.gif?owner=…).
+// Обмеження: розширення в адресі не гарантує фактичний MIME-тип — сервер за адресою
+// «cat.jpg» може віддати будь-що. Тег <img> показує лише справжні зображення і не
+// виконує скриптів, тому це не відкриває XSS; повну гарантію дала б перевірка
+// Content-Type на сервері або завантаження фото у власне сховище.
+const IMAGE_EXTENSION = /\.(jpe?g|png|gif|webp)$/i;
+const LOCAL_IMAGE = /^assets\/img\/[\w-]+\.(jpe?g|png|gif|webp)$/i;
+
+function isSafeImageUrl(url) {
+    if (typeof url !== 'string') return false;
+    const value = url.trim();
+    if (value === '' || value.length > 300) return false;
+    if (LOCAL_IMAGE.test(value)) return true;
+
+    try {
+        const parsed = new URL(value);
+        return parsed.protocol === 'https:' &&
+               IMAGE_EXTENSION.test(parsed.pathname) &&
+               parsed.search === '' &&
+               parsed.hash === '';
+    } catch {
+        return false;   // не URL узагалі
+    }
+}
+
+// Повертає адресу, якщо вона безпечна, інакше порожній рядок (фото не показується)
+function safeImageUrl(url) {
+    return isSafeImageUrl(url) ? url.trim() : '';
+}
+
 /* ===================== Практикум 10–11 ===================== */
 /* Vue 3 + збереження даних у localStorage / IndexedDB.          */
 /* Функції роботи зі сховищами — у блоці «Практикум 11» вище.  */
@@ -1204,6 +1266,13 @@ const PetCard = {
         notes:    { type: String, default: '' }
     },
     emits: ['delete'],
+
+    computed: {
+        // ПР №15: у <img> потрапляє лише перевірена адреса зображення
+        safePhotoUrl() {
+            return safeImageUrl(this.photoUrl);
+        }
+    },
 
     data() {
         return {
@@ -1224,7 +1293,7 @@ const PetCard = {
             @click="toggleFavorite"
             :class="{ 'favorite': isFavorite }"
         >
-            <img v-if="photoUrl && !imgFailed" :src="photoUrl" :alt="name"
+            <img v-if="safePhotoUrl && !imgFailed" :src="safePhotoUrl" :alt="name"
                  class="pet-photo" @error="imgFailed = true">
             <div v-else class="pet-photo pet-photo-empty">🐾</div>
 
@@ -1333,6 +1402,16 @@ const petCatalogApp = Vue.createApp({
         async addPet() {
             if (!this.form.name || !this.form.species) {
                 this.formError = "Заповніть поля «Ім'я» та «Вид».";
+                return;
+            }
+            // ПР №15. Перевірка введених даних перед збереженням у IndexedDB
+            if (this.form.name.length > MAX_NAME_LENGTH || this.form.notes.length > MAX_NOTES_LENGTH) {
+                this.formError = `Ім'я — до ${MAX_NAME_LENGTH} символів, нотатки — до ${MAX_NOTES_LENGTH}.`;
+                return;
+            }
+            if (this.form.photoUrl && !isSafeImageUrl(this.form.photoUrl)) {
+                this.formError = 'Посилання на фото має вести на зображення: https://… або assets/img/… ' +
+                                 'з розширенням .jpg, .png, .gif чи .webp, без параметрів після «?».';
                 return;
             }
             this.formError = '';

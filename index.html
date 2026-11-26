@@ -199,16 +199,16 @@
     <!-- Форма додавання нової тварини з фото (варіант 12) -->
     <form class="vue-pet-form" @submit.prevent="addPet">
         <label>Ім'я*
-            <input v-model.trim="form.name" placeholder="Напр., Сніжок">
+            <input v-model.trim="form.name" placeholder="Напр., Сніжок" maxlength="40">
         </label>
         <label>Вид*
             <input v-model.trim="form.species" placeholder="Напр., кролик">
         </label>
         <label>URL фото
-            <input v-model.trim="form.photoUrl" placeholder="https://...">
+            <input v-model.trim="form.photoUrl" placeholder="https://.../photo.jpg" maxlength="300">
         </label>
         <label>Нотатки
-            <input v-model.trim="form.notes" placeholder="Вік, характер...">
+            <input v-model.trim="form.notes" placeholder="Вік, характер..." maxlength="300">
         </label>
         <button type="submit">Додати тварину</button>
         <p v-if="formError" class="form-error">{{ formError }}</p>
